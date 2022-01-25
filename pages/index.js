@@ -1,17 +1,12 @@
 import styled from "styled-components";
-import {
-  ApolloClient,
-  InMemoryCache,
-  gql,
-  createHttpLink,
-} from "@apollo/client";
+import { useQuery } from "@apollo/client";
 import Link from "next/link";
 import Image from "next/image";
 import { setContext } from "@apollo/client/link/context";
 import { useState } from "react";
 import { ButtonGroup } from "../components/ButtonGroup";
 import { Search } from "../components/Search";
-import SBubble from "../public/speech.png";
+import { FETCH_ISSUES } from "../queries/index";
 
 const Row = styled.div`
   display: flex;
@@ -70,91 +65,31 @@ const AuthDate = styled.h5`
   font-weight: 200;
   margin-top: 5px;
 `;
-export default function Home({ issues }) {
-  console.log(issues);
+export default function Home() {
+  const { data, loading, error, refetch } = useQuery(FETCH_ISSUES, {
+    variables: { cursor: null },
+  });
+
+  console.log("data", data, error);
   const [issueState, setIssueState] = useState("OPEN");
-  const dateFixer = (a) => {
-    const date = a.split("D").pop().split("T").shift();
-    return date;
-  };
-  const handleChange = () => {
-    console.log("change");
-  };
+
+  if (loading) {
+    return <p>loading...</p>;
+  }
+  if (error) {
+    return <p>WHAT!!</p>;
+  }
 
   return (
     <>
-      <input onChange={handleChange} />;
-      {issues.search.nodes.map((issue, i) => {
-        return (
-          <>
-            {" "}
-            <TotalCountRow key={i}>ISSUE NR:{issue.number}</TotalCountRow>
-            <TotalCountRow key={i}>
-              ISSUE TITLE:{issue.title} TOTAL
-            </TotalCountRow>
-          </>
-        );
+      <button
+        onClick={() => refetch({ cursor: data.search.pageInfo.endCursor })}
+      >
+        Next Page
+      </button>
+      {data.search.nodes.map((issue) => {
+        return <p key={issue.id}>{issue.title}</p>;
       })}
     </>
   );
-}
-
-export async function getStaticProps() {
-  const httpLink = createHttpLink({
-    uri: "https://api.github.com/graphql",
-  });
-
-  const authLink = setContext((_, { headers }) => {
-    return {
-      headers: {
-        ...headers,
-        authorization: `Bearer ${process.env.TOKEN}`,
-      },
-    };
-  });
-
-  const client = new ApolloClient({
-    link: authLink.concat(httpLink),
-    cache: new InMemoryCache(),
-  });
-
-  const { data } = await client.query({
-    query: gql`
-      {
-        search(query: "repo:facebook/react is:issue", type: ISSUE, first: 10) {
-          nodes {
-            ... on Issue {
-              id
-              author {
-                login
-              }
-              state
-              number
-              title
-            }
-          }
-        }
-      }
-    `,
-  });
-  const cache = new InMemoryCache({
-    typePolicies: {
-      First: {
-        // In an inventory management system, products might be identified
-        // by their UPC.
-        keyFields: ["title"],
-      },
-      Second: {
-        // In a user account system, the combination of a person's name AND email
-        // address might uniquely identify them.
-        keyFields: ["number", "body"],
-      },
-    },
-  });
-  console.log("cache", cache);
-  const issues = data;
-
-  return {
-    props: { issues: issues },
-  };
 }

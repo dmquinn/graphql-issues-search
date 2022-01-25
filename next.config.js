@@ -3,4 +3,7 @@ module.exports = {
   images: {
     domains: ["avatars.githubusercontent.com"],
   },
+  env: {
+    TOKEN: "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",
+  },
 };
